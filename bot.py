@@ -94,7 +94,10 @@ def call_llm(conversation_history):
 
     if gemini_key:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
         payload = {
             "contents": [{"parts": [{"text": prompt}]}]
         }
@@ -107,7 +110,8 @@ def call_llm(conversation_history):
         url = "https://aiproxy.sanand.workers.dev/api/v1/chat/completions"
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {aiproxy_token}"
+            "Authorization": f"Bearer {aiproxy_token}",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         payload = {
             "model": "gpt-4o-mini",
@@ -125,7 +129,8 @@ def call_llm(conversation_history):
         url = "https://aipipe.org/openai/v1/chat/completions"
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {aipipe_token}"
+            "Authorization": f"Bearer {aipipe_token}",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         payload = {
             "model": "gpt-4o-mini",
@@ -143,7 +148,8 @@ def call_llm(conversation_history):
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {openai_key}"
+            "Authorization": f"Bearer {openai_key}",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
         payload = {
             "model": "gpt-4o-mini",
