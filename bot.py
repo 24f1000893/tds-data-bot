@@ -67,6 +67,7 @@ def call_llm(conversation_history):
     gemini_key = os.environ.get("GEMINI_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
     aiproxy_token = os.environ.get("AIPROXY_TOKEN")
+    aipipe_token = os.environ.get("AIPIPE_TOKEN")
 
     system_prompt = (
         "You are a precise data analyst assistant. Your task is to write a self-contained Python script to solve a data analysis question.\n"
@@ -114,6 +115,24 @@ def call_llm(conversation_history):
             res = json.loads(resp.read().decode("utf-8"))
             return res["choices"][0]["message"]["content"]
 
+    elif aipipe_token:
+        url = "https://aipipe.org/openai/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {aipipe_token}"
+        }
+        payload = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": conversation_history}
+            ]
+        }
+        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            res = json.loads(resp.read().decode("utf-8"))
+            return res["choices"][0]["message"]["content"]
+
     elif openai_key:
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
@@ -133,7 +152,7 @@ def call_llm(conversation_history):
             return res["choices"][0]["message"]["content"]
 
     else:
-        raise ValueError("No LLM API keys configured! Please set GEMINI_API_KEY, AIPROXY_TOKEN, or OPENAI_API_KEY.")
+        raise ValueError("No LLM API keys configured! Please set GEMINI_API_KEY, AIPROXY_TOKEN, AIPIPE_TOKEN, or OPENAI_API_KEY.")
 
 def extract_code(text):
     match = re.search(r"```python\s*(.*?)\s*```", text, re.DOTALL)
