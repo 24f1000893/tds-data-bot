@@ -10,7 +10,13 @@ from http.server import SimpleHTTPRequestHandler, HTTPServer
 import threading
 import subprocess
 import tempfile
+import ssl
 import traceback
+
+try:
+    ssl_context = ssl._create_unverified_context()
+except AttributeError:
+    ssl_context = None
 
 # Load dotenv if present
 try:
@@ -93,7 +99,7 @@ def call_llm(conversation_history):
             "contents": [{"parts": [{"text": prompt}]}]
         }
         req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=60, context=ssl_context) as resp:
             res = json.loads(resp.read().decode("utf-8"))
             return res["candidates"][0]["content"]["parts"][0]["text"]
 
@@ -111,7 +117,7 @@ def call_llm(conversation_history):
             ]
         }
         req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=60, context=ssl_context) as resp:
             res = json.loads(resp.read().decode("utf-8"))
             return res["choices"][0]["message"]["content"]
 
@@ -129,7 +135,7 @@ def call_llm(conversation_history):
             ]
         }
         req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=60, context=ssl_context) as resp:
             res = json.loads(resp.read().decode("utf-8"))
             return res["choices"][0]["message"]["content"]
 
@@ -147,7 +153,7 @@ def call_llm(conversation_history):
             ]
         }
         req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=60, context=ssl_context) as resp:
             res = json.loads(resp.read().decode("utf-8"))
             return res["choices"][0]["message"]["content"]
 
@@ -214,7 +220,7 @@ def send_telegram_reply(chat_id, text, reply_to_message_id=None):
         payload["reply_to_message_id"] = reply_to_message_id
     req = urllib.request.Request(url, data=urllib.parse.urlencode(payload).encode("utf-8"))
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30, context=ssl_context) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except Exception as e:
         print(f"Error sending message to Telegram: {e}")
@@ -322,7 +328,7 @@ def poll_updates():
         try:
             url = f"{API_URL}getUpdates?offset={offset}&timeout=30"
             req = urllib.request.Request(url)
-            with urllib.request.urlopen(req, timeout=35) as resp:
+            with urllib.request.urlopen(req, timeout=35, context=ssl_context) as resp:
                 updates = json.loads(resp.read().decode("utf-8"))
                 if updates.get("ok") and updates.get("result"):
                     for update in updates["result"]:
@@ -335,13 +341,25 @@ def poll_updates():
                             
                             # Start a thread to process message concurrently so we don't block polling
                             threading.Thread(target=process_message, args=(chat_id, message_id, text), daemon=True).start()
+        except urllib.error.HTTPError as e:
+            print(f"HTTP Error in polling updates: {e.code} {e.reason}")
+            # If 401 Unauthorized, exit to avoid spamming
+            if e.code == 401:
+                print("Invalid BOT_TOKEN. Exiting.")
+                os._exit(1)
+            time.sleep(5)
         except urllib.error.URLError as e:
-            # Silence expected timeouts
-            pass
+            import socket
+            if isinstance(e.reason, socket.timeout):
+                # Silence expected read timeout
+                pass
+            else:
+                print(f"URL Error in polling updates: {e}")
+                time.sleep(5)
         except Exception as e:
             print(f"Error in polling updates: {e}")
             time.sleep(5)
-        time.sleep(1)
+        time.sleep(0.5)
 
 def main():
     if not BOT_TOKEN:
